@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>東京都23区 公共ジムマップ</title>
+    
+    <!-- Leaflet.js (地図ライブラリ) のスタイルシート -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    
+    <!-- Font Awesome (アイコン) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <!-- Google Fonts (Noto Sans JP) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* --- 基本スタイル --- */
+        :root {
+            --primary-color: #e67e22; /* Energetic Orange */
+            --secondary-color: #d35400; /* Darker Orange */
+            --accent-color: #2980b9; /* Blue for contrast */
+            --background-light: #f8f9fa;
+            --background-white: #ffffff;
+            --text-dark: #2c3e50;
+            --text-light: #7f8c8d;
+            --border-color: #e0e0e0;
+        }
+
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--background-light);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- デスクトップ用レイアウト --- */
+        #desktop-container {
+            display: flex;
+            height: 100vh;
+            width: 100%;
+        }
+
+        .sidebar {
+            width: 380px;
+            min-width: 360px;
+            background: var(--background-white);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.05);
+        }
+
+        .sidebar-header {
+            padding: 16px;
+            border-bottom: 1px solid #f0f0f0;
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .sidebar-header h1 {
+            font-size: 20px;
+            font-weight: 700;
+            margin: 0 0 4px 0;
+        }
+
+        .sidebar-header p {
+            font-size: 13px;
+            margin: 0;
+            opacity: 0.9;
+        }
+
+        .filters-container {
+            padding: 12px;
+            border-bottom: 1px solid #f0f0f0;
+            background-color: var(--background-light);
+            flex-shrink: 0;
+        }
+
+        .filter-group {
+            margin-bottom: 12px;
+        }
+        .filter-group:last-child { margin-bottom: 0; }
+
+        .filter-group h4 {
+            font-size: 14px;
+            font-weight: 700;
+            margin: 0 0 8px 0;
+            color: var(--text-dark);
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+
+        .filter-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .filter-buttons button {
+            padding: 5px 12px;
+            border: 1px solid #ccc;
+            border-radius: 16px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            background-color: var(--background-white);
+        }
+
+        .filter-buttons button.active {
+            background-color: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+        
+        .clear-filters-btn {
+            display: block;
+            width: 100%;
+            margin-top: 10px;
+            padding: 8px;
+            background-color: var(--text-light);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        .clear-filters-btn:hover {
+            background-color: #95a5a6;
+        }
+
+
+        .stats-section {
+            padding: 12px;
+            background-color: #fff3e0; /* Light Orange */
+            color: #e65100; /* Dark Orange */
+            flex-shrink: 0;
+        }
+        .stats-section p {
+            margin: 4px 0;
+            font-size: 14px;
+        }
+        .stats-section strong { font-weight: 700; }
+
+        .facility-list-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+        }
+
+        .facility-item {
+            padding: 12px;
+            margin-bottom: 8px;
+            background: white;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-left: 4px solid transparent;
+        }
+        .facility-item:hover {
+            border-left-color: var(--secondary-color);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+        .facility-item.selected {
+            border-left-color: var(--primary-color);
+            background: #fff8f2;
+        }
+        .facility-item h5 {
+            font-size: 15px;
+            font-weight: 700;
+            margin: 0 0 4px 0;
+            color: var(--text-dark);
+        }
+         .facility-item h5 a {
+            text-decoration: none;
+            color: inherit;
+        }
+        .facility-item h5 a:hover {
+            text-decoration: underline;
+        }
+        .facility-item p {
+            font-size: 12px;
+            color: #666;
+            margin: 2px 0;
+        }
+
+        .map-container {
+            flex: 1;
+            height: 100%;
+            position: relative;
+        }
+        #map {
+            height: 100%;
+            width: 100%;
+            background-color: #eaf0f5;
+        }
+        
+        /* --- モバイル用レイアウト (REFACTORED) --- */
+        #mobile-container {
+            display: none; /* 初期状態は非表示 */
+            flex-direction: column;
+            height: 100vh;
+            width: 100%;
+        }
+
+        #mobile-map-wrapper {
+            height: 45vh; /* Map takes top 45% of the screen */
+            width: 100%;
+            flex-shrink: 0;
+        }
+        #mobile-map {
+            height: 100%;
+            width: 100%;
+        }
+
+        #mobile-content-wrapper {
+            height: 55vh; /* Content takes bottom 55% */
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: var(--background-white);
+        }
+
+        .mobile-controls {
+            padding: 8px 12px;
+            background: var(--background-light);
+            border-bottom: 1px solid var(--border-color);
+            flex-shrink: 0;
+        }
+        
+        #search-toggle {
+            width: 100%;
+            padding: 8px;
+            font-size: 14px;
+            font-weight: 700;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            margin-bottom: 8px;
+        }
+
+        #mobile-search-panel {
+            display: none; /* Initially hidden */
+            padding: 12px;
+            background: #fff;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+        }
+        
+        #mobile-facility-list-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+        }
+
+        @media (max-width: 768px) {
+            #desktop-container { display: none; }
+            #mobile-container { display: flex; }
+        }
+        
+        /* --- Leaflet ポップアップ & コントロールのスタイル --- */
+        .leaflet-popup-content-wrapper {
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .leaflet-popup-content {
+            font-size: 14px;
+            line-height: 1.6;
+            width: 300px !important;
+        }
+        .leaflet-popup-content h3 {
+            margin: 0 0 10px;
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-dark);
+        }
+         .leaflet-popup-content h3 a {
+            text-decoration: none;
+            color: inherit;
+        }
+        .leaflet-popup-content h3 a:hover {
+            text-decoration: underline;
+        }
+        .leaflet-popup-content p {
+            margin: 5px 0;
+            font-size: 12px;
+        }
+        .popup-section {
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid #eee;
+        }
+        
+        /* 現在地ボタン */
+        .leaflet-control-locate a {
+            font-size: 1.4em;
+            color: #333;
+        }
+
+        /* --- カスタム通知 (Toast) --- */
+        .toast-notification {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: var(--text-dark);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            z-index: 2000;
+            opacity: 0;
+            transition: opacity 0.3s, bottom 0.3s;
+            font-size: 14px;
+        }
+        .toast-notification.show {
+            opacity: 1;
+            bottom: 30px;
+        }
+
+
+        /* --- カスタムスクロールバー --- */
+        .facility-list-container::-webkit-scrollbar, .mobile-search-panel::-webkit-scrollbar, #mobile-facility-list-container::-webkit-scrollbar {
+            width: 6px;
+        }
+        .facility-list-container::-webkit-scrollbar-track, .mobile-search-panel::-webkit-scrollbar-track, #mobile-facility-list-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        .facility-list-container::-webkit-scrollbar-thumb, .mobile-search-panel::-webkit-scrollbar-thumb, #mobile-facility-list-container::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <!-- デスクトップ用コンテナ -->
+    <div id="desktop-container">
+        <!-- サイドバー -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h1>東京都23区 公共ジムマップ</h1>
+                <p>身近な公共トレーニング施設を探索</p>
+            </div>
+
+            <!-- フィルター -->
+            <div class="filters-container" id="desktop-filters">
+                <div class="filter-group">
+                    <input type="text" id="search-input-desktop" placeholder="キーワード (施設名, 住所など)" class="search-input">
+                </div>
+                <div class="filter-group">
+                    <h4><i class="fas fa-map-marked-alt"></i> 区</h4>
+                    <div class="filter-buttons" id="ward-filters-desktop">
+                        <!-- 動的に生成 -->
+                    </div>
+                </div>
+                <div class="filter-group">
+                    <h4><i class="fas fa-yen-sign"></i> 都度利用料金 (一般)</h4>
+                    <div class="filter-buttons" id="price-filters-desktop">
+                        <button data-value="all" class="active">すべて</button>
+                        <button data-value="400">〜400円</button>
+                        <button data-value="800">〜800円</button>
+                        <button data-value="801">801円〜</button>
+                    </div>
+                </div>
+                <button class="clear-filters-btn" id="clear-filters-desktop"><i class="fas fa-times"></i> フィルターをリセット</button>
+            </div>
+
+            <!-- 統計情報 -->
+            <div class="stats-section" id="stats-section-desktop"></div>
+
+            <!-- 施設リスト -->
+            <div class="facility-list-container" id="facility-list"></div>
+        </aside>
+
+        <!-- 地図コンテナ -->
+        <main class="map-container">
+            <div id="map"></div>
+        </main>
+    </div>
+
+    <!-- モバイル用コンテナ (REFACTORED) -->
+    <div id="mobile-container">
+        <main id="mobile-map-wrapper">
+            <div id="mobile-map"></div>
+        </main>
+        <div id="mobile-content-wrapper">
+            <div class="mobile-controls">
+                <button id="search-toggle"><i class="fas fa-search"></i> 検索・絞り込み</button>
+                <div id="mobile-search-panel">
+                    <!-- モバイル用フィルターがここに複製される -->
+                </div>
+            </div>
+            <div class="stats-section" id="stats-section-mobile"></div>
+            <div class="facility-list-container" id="mobile-facility-list-container">
+                <!-- モバイル用施設リストがここに表示される -->
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Leaflet.js のスクリプト -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    
+    <!-- アプリケーションのロジック -->
+    <script type="module">
+        const gymData = [
+            { "No": 1, "ジム名": "千代田区立スポーツセンター", "住所": "東京都千代田区内神田2-1-8", "緯度": 35.689385, "経度": 139.767462, "都度利用料金_一般": "プール: 200円/2時間; トレーニングルーム: 300円/フリータイム", "都度利用料金_区民_特定割引": "区民割引あり", "月額料金_定期券_一般": "4,000円～ (すぽすた会員)", "月額料金_定期券_区民_特定割引": "4,000円～ (すぽすた会員)", "主な利用可能施設": "プール; トレーニングルーム; 各種競技場; スタジオ", "備考": "スポーツ以外に文化・学習プログラムも提供" },
+            { "No": 2, "ジム名": "中央区立総合スポーツセンター", "住所": "東京都中央区日本橋浜町2-59-1", "緯度": 35.687754, "経度": 139.789453, "都度利用料金_一般": "体育施設: 300円/1区分; トレーニングルーム: 400円/2時間; プール: 500円/2時間", "都度利用料金_区民_特定割引": "小中学生: 体育施設150円; プール250円; 区民大人プール: 350円/2時間", "月額料金_定期券_一般": "なし", "月額料金_定期券_区民_特定割引": "なし", "主な利用可能施設": "アリーナ; 体育館; 武道館; 卓球室; トレーニングルーム; プール; ゴルフ練習場など", "備考": "多様なスポーツ施設; バリアフリー充実" },
+            { "No": 3, "ジム名": "月島スポーツプラザ", "住所": "東京都中央区月島1-9-2", "緯度": 35.665199, "経度": 139.783044, "都度利用料金_一般": "プール: 500円/2時間", "都度利用料金_区民_特定割引": "区民大人プール: 350円/2時間; 小中学生プール: 250円/2時間; 幼児・区内在住小中学生・障害者・65歳以上: 無料", "月額料金_定期券_一般": "なし", "月額料金_定期券_区民_特定割引": "プリペイドカードあり", "主な利用可能施設": "プール", "備考": "駐車場なし" },
+            { "No": 4, "ジム名": "港区スポーツセンター", "住所": "東京都港区芝浦1-16-1", "緯度": 35.646614, "経度": 139.751562, "都度利用料金_一般": "800円", "都度利用料金_区民_特定割引": "港区在住・在勤・在学者: 500円; 小中高生: 100円; 未就学児・65歳以上（区民）・障害者（区民）: 無料", "月額料金_定期券_一般": "なし", "月額料金_定期券_区民_特定割引": "なし", "主な利用可能施設": "アリーナ; 武道場; 多目的室; プールなど", "備考": "区民無料公開日; 小中高校生無料利用日あり" },
+            { "No": 5, "ジム名": "虎ノ門いきいきプラザ", "住所": "東京都港区虎ノ門1-21-10", "緯度": 35.667921, "経度": 139.748791, "都度利用料金_一般": "1,160円 (トレーニングルーム)", "都度利用料金_区民_特定割引": "区内在住・在勤: 580円; 区内在住65歳以上: 無料; 小中高生: 100円", "月額料金_定期券_一般": "6,480円/1ヶ月 (区内在住・在勤)", "月額料金_定期券_区民_特定割引": "6,480円/1ヶ月 (区内在住・在勤)", "主な利用可能施設": "トレーニングルーム; 多目的ホール; 会議室", "備考": "回数券・定期券は区内在住・在勤者のみ" },
+            { "No": 6, "ジム名": "新宿スポーツセンター", "住所": "東京都新宿区大久保3-5-1", "緯度": 35.706993, "経度": 139.705404, "都度利用料金_一般": "プール: 400円; トレーニング室: 400円/3時間", "都度利用料金_区民_特定割引": "なし", "月額料金_定期券_一般": "なし", "月額料金_定期券_区民_特定割引": "なし", "主な利用可能施設": "プール; 体育館; トレーニング室; 武道場; 洋弓場; スタジオなど", "備考": "プールとトレーニング室のセット利用600円/4時間" },
+            { "No": 7, "ジム名": "新宿コズミックセンター", "住所": "東京都新宿区大久保3-1-2", "緯度": 35.705033, "経度": 139.708049, "都度利用料金_一般": "幼児体育室: 100円/1回; その他個人利用は施設による", "都度利用料金_区民_特定割引": "なし", "月額料金_定期券_一般": "なし", "月額料金_定期券_区民_特定割引": "なし", "主な利用可能施設": "プール; 多目的広場; 幼児体育室; 武道場; 弓道場; 体育室; 会議室など", "備考": "貸切利用が主; プラネタリウム併設" },
+            { "No": 8, "ジム名": "文京スポーツセンター", "住所": "東京都文京区大塚3-29-2", "緯度": 35.720522, "経度": 139.73642, "都度利用料金_一般": "各競技場・道場: 310円/1単位; プール: 550円/2時間; トレーニングルーム: 600円/3時間", "都度利用料金_区民_特定割引": "中学生以下: 各競技場・道場160円; プール230円/2時間; シルバー(65–69歳)プール: 280円/2時間; トレーニングルーム300円/3時間; セミゴールド(70–79歳)・ゴールド(80歳以上): 無料; 障害者とその介助者1名まで無料", "月額料金_定期券_一般": "プール: 4,600円/1ヶ月; トレーニングルーム: 2,800円/1ヶ月", "月額料金_定期券_区民_特定割引": "プール: 中学生以下2,300円/1ヶ月; トレーニングルーム: シルバー2,800円/1ヶ月", "主な利用可能施設": "各競技場; 道場; プール; トレーニングルーム", "備考": "文京区在住・在勤・在学の方のみ利用可" },
+            { "No": 9, "ジム名": "文京総合体育館", "住所": "東京都文京区本郷7-1-2", "緯度": 35.713429, "経度": 139.762362, "都度利用料金_一般": "競技施設: 310円/1単位; プール: 550円/2時間", "都度利用料金_区民_特定割引": "中学生以下: 競技施設160円; プール230円/2時間", "月額料金_定期券_一般": "なし", "月額料金_定期券_区民_特定割引": "なし", "主な利用可能施設": "弓道場; 競技場; 武道場; プール; 卓球場など", "備考": "キッズルーム; 多目的トイレ完備" },
+            { "No": 10, "ジム名": "台東リバーサイドスポーツセンター", "住所": "東京都台東区今戸1-1-10", "緯度": 35.719969, "経度": 139.804901, "都度利用料金_一般": "体育館: 250円/1回; トレーニング室: 250円/3時間", "都度利用料金_区民_特定割引": "小中学生: 100円/1回; 区内在住・在勤・在学の障害者: 料金免除", "月額料金_定期券_一般": "なし", "月額料金_定期券_区民_特定割引": "なし", "主な利用可能施設": "第1・第2競技場; 武道場; 弓道場; エアーライフル場; 卓球場; 相撲場; トレーニング室; 陸上競技場; 野球場; テニスコート; プールなど", "備考": "屋内外に多岐にわたる施設" },
+            { "No": 11, "ジム名": "上野健康増進センター", "住所": "東京都台東区東上野4-22-8", "緯度": 35.713611, "経度": 139.778889, "都度利用料金_一般": "300円/1回 (トレーニングルーム・プール・2教室まで)", "都度利用料金_区民_特定割引": "初回健康度測定後1年間: 150円", "月額料金_定期券_一般": "なし", "月額料金_定期券_区民_特定割引": "なし", "主な利用可能施設": "アクアエクササイズ室; トレーニング室; 運動フロア", "備考": "健康づくり特化; 専門スタッフ指導; 登録証発行必須" },
+            { "No": 12, "ジム名": "台東一丁目区民館", "住所": "東京都台東区台東1-25-5", "緯度": 35.702778, "経度": 139.781667, "都度利用料金_一般": "プール: 500円", "都度利用料金_区民_特定割引": "プール: 3歳から中学生200円; 65歳以上250円; 障害者無料", "月額料金_定期券_一般": "プール: 4,000円/1ヶ月", "月額料金_定期券_区民_特定割引": "プール: 3歳から中学生1,600円/1ヶ月; 65歳以上2,000円/1ヶ月; 障害者無料", "主な利用可能施設": "プール; 多目的ホール; 会議室など", "備考": "主に会議・イベント利用の施設" },
+            { "No": 13, "ジム名": "上野区民館", "住所": "東京都台東区池之端1-1-12", "緯度": 35.712778, "経度": 139.771111, "都度利用料金_一般": "プール: 500円; トレーニング室: 250円/3時間", "都度利用料金_区民_特定割引": "プール: 3歳から中学生200円; 65歳以上250円; 障害者無料", "月額料金_定期券_一般": "プール: 4,000円/1ヶ月", "月額料金_定期券_区民_特定割引": "プール: 3歳から中学生1,600円/1ヶ月; 65歳以上2,000円/1ヶ月; 障害者無料", "主な利用可能施設": "プール; トレーニング室など", "備考": "主に会議・イベント利用の施設" },
+            { "No": 14, "ジム名": "ひがしんアリーナ（墨田区総合体育館）", "住所": "東京都墨田区錦糸4-15-1", "緯度": 35.699487, "経度": 139.817219, "都度利用料金_一般": "550円/2時間 (メインアリーナ; プール; トレーニング室); 330円/2時間 (多目的競技場; 武道場)", "都度利用料金_区民_特定割引": "3歳以上中学生以下は半額; 障害者手帳保持者・墨田区在住65歳以上は半額; 墨田区在住障害者はプール100円", "月額料金_定期券_一般": "共通券A: 920円/1日 (プール; トレーニング室; ランニングコース)", "月額料金_定期券_区民_特定割引": "共通券B: 1,840円/1日 (共通券A + プログラム)", "主な利用可能施設": "メインアリーナ; プール; トレーニング室; 武道場; 多目的競技場; ランニングコースなど", "備考": "レンタル備品充実; 区民還元デーあり" },
+            { "No": 15, "ジム名": "スポーツプラザ梅若", "住所": "東京都墨田区墨田1-4-4", "緯度": 35.725556, "経度": 139.815, "都度利用料金_一般": "トレーニング室: 240円; 体育館: 170円; レッスン: 500円/1回", "都度利用料金_区民_特定割引": "中学生以下: 50円 (体育館)", "月額料金_定期券_一般": "なし", "月額料金_定期券_区民_特定割引": "なし", "主な利用可能施設": "トレーニング室; 体育館", "備考": "コナミスポーツクラブ運営受託" },
+            { "No": 16, "ジム名": "すみだスポーツ健康センター", "住所": "東京都墨田区東墨田1-6-1", "緯度": 35.716408, "経度": 139.830515, "都度利用料金_一般": "プール: 平日440円/2時間; 土日祝550円/2時間; トレーニング室: 240円", "都度利用料金_区民_特定割引": "小中学生プール: 平日220円/2時間; 土日祝280円/2時間; 65歳以上および心身障害者プール: 110円/2時間; 3歳以上未就学児プール: 無料", "月額料金_定期券_一般": "なし", "月額料金_定期券_区民_特定割引": "なし", "主な利用可能施設": "プール; トレーニング室", "備考": "プール料金は平日と土日祝で異なる" },
+            { "No": 17, "ジム名": "フクシ・エンタープライズ墨田フィールド（墨田区総合運動場）", "住所": "東京都墨田区堤通2-11-1", "緯度": 35.733611, "経度": 139.813611, "都度利用料金_一般": "トレーニング室: 240円/2時間; 多目的室: 200円/2時間", "都度利用料金_区民_特定割引": "なし", "月額料金_定期券_一般": "なし", "月額料金_定期券_区民_特定割引": "なし", "主な利用可能施設": "トラック; インフィールド; トレーニング室; 多目的室; 調理室; 会議室; 宿泊室など", "備考": "合宿利用も可能; トレーナー常駐" },
+            { "No": 18, "ジム名": "深川スポーツセンター", "住所": "東京都江東区越中島1-2-18", "緯度": 35.670278, "経度": 139.791667, "都度利用料金_一般": "各区分: 400円; 全日: 700円", "都度利用料金_区民_特定割引": "なし", "月額料金_定期券_一般": "なし", "月額料金_定期券_区民_特定割引": "なし", "主な利用可能施設": "情報なし", "備考": "第2・4月曜休館" },
+            { "No": 19, "ジム名": "亀戸スポーツセンター", "住所": "東京都江東区亀戸8-22-1", "緯度": 35.698056, "経度": 139.836111, "都度利用料金_一般": "体育館・トレーニング室: 450円/各時間帯; プール: 450円/2時間", "都度利用料金_区民_特定割引": "小人: 体育館・トレーニング室100円; プール150円; 江東区内65歳以上: 体育館・トレーニング室100円; プール150円; 江東区内障害者: 体育館・プール無料; トレーニング室大人200円/65歳以上50円; 江東区外障害者: 半額", "月額料金_定期券_一般": "なし", "月額料金_定期券_区民_特定割引": "なし", "主な利用可能施設": "体育館; トレーニング室; プール", "備考": "バリアフリー充実" },
+            { "No": 20, "ジム名": "有明スポーツセンター", "住所": "東京都江東区有明2-3-5", "緯度": 35.635833, "経度": 139.790556, "都度利用料金_一般": "トレーニング室: 450円/4時間", "都度利用料金_区民_特定割引": "区内在住65歳以上: 100円; 障害者割引あり", "月額料金_定期券_一般": "回数券・定期券あり", "月額料金_定期券_区民_特定割引": "なし", "主な利用可能施設": "トレーニング室", "備考": "駐車場あり" },
+            { "No": 21, "ジム名": "東砂スポーツセンター", "住所": "東京都江東区東砂4-24-1", "緯度": 35.680000, "経度": 139.839515, "都度利用料金_一般": "大体育室・トレーニング室: 450円/各時間帯; プール: 450円/2時間", "都度利用料金_区民_特定割引": "小人: 大体育室・トレーニング室100円; プール150円; 江東区内65歳以上: 大体育室・トレーニング室100円; プール150円; 江東区内障害者: 体育館・プール無料; トレーニング室大人200円/65歳以上50円; 江東区外障害者: 半額", "月額料金_定期券_一般": "なし", "月額料金_定期券_区民_特定割引": "なし", "主な利用可能施設": "大体育室; トレーニング室; プール", "備考": "バリアフリー充実" },
+            { "No": 22, "ジム名": "深川北スポーツセンター", "住所": "東京都江東区平野3-2-20", "緯度": 35.676878, "経度": 139.805137, "都度利用料金_一般": "体育室・トレーニング室: 450円/各時間帯; プール: 450円/2時間", "都度利用料金_区民_特定割引": "小人: 体育室・トレーニング室100円; プール150円; 江東区内65歳以上: 体育室・トレーニング室100円; プール150円; 江東区内障害者: 体育館・プール無料; トレーニング室大人200円/65歳以上50円; 江東区外障害者: 半額", "月額料金_定期券_一般": "なし", "月額料金_定期券_区民_特定割引": "なし", "主な利用可能施設": "体育室; トレーニング室; プール", "備考": "バリアフリー充実; 駐車場あり" },
+            { "No": 23, "ジム名": "江東区健康センター", "住所": "東京都江東区東陽2-1-1", "緯度": 35.668847, "経度": 139.816182, "都度利用料金_一般": "トレーニング室: 500円/1日", "都度利用料金_区民_特定割引": "なし", "月額料金_定期券_一般": "トレーニング室: 4,000円/1ヶ月", "月額料金_定期券_区民_特定割引": "なし", "主な利用可能施設": "トレーニング室", "備考": "トレーニング室利用には健康度測定が必須" },
+            { "No": 24, "ジム名": "豊洲西小学校トレーニング室", "住所": "東京都江東区豊洲5-1-35", "緯度": 35.651304, "経度": 139.795036, "都度利用料金_一般": "プール: 400円/2時間; トレーニング室: 400円/4時間", "都度利用料金_区民_特定割引": "中学生以下プール: 150円/2時間; 65歳以上プール: 150円/2時間; 65歳以上トレーニング室: 100円/4時間; 江東区内障害者: トレーニング室・プール無料; 江東区外障害者: 半額", "月額料金_定期券_一般": "なし", "月額料金_定期券_区民_特定割引": "なし", "主な利用可能施設": "トレーニング室; プール", "備考": "トレーニング室は中学生以下利用不可" },
+            { "No": 25, "ジム名": "品川健康センター", "住所": "東京都品川区北品川3-11-22", "緯度": 35.617511, "経度": 139.739191, "都度利用料金_一般": "500円 (時間制限なし)", "都度利用料金_区民_特定割引": "なし", "月額料金_定期券_一般": "4,000円/11回券 (フリー利用)", "月額料金_定期券_区民_特定割引": "なし", "主な利用可能施設": "スタジオ; トレーニングルーム; ジョギングロード; プレイコート; ゴルフエリア", "備考": "スカッシュ; シミュレーションゴルフも利用可" },
+            { "No": 26, "ジム名": "荏原健康センター", "住所": "東京都品川区西五反田6-6-20", "緯度": 35.620653, "経度": 139.7166, "都度利用料金_一般": "400円 (時間制限なし)", "都度利用料金_区民_特定割引": "なし", "月額料金_定期券_一般": "4,000円/11回券 (フリー利用)", "月額料金_定期券_区民_特定割引": "なし", "主な利用可能施設": "スタジオ; トレーニングルーム", "備考": "時間制限なしのフリー利用" },
+            { "No": 27, "ジム名": "品川区立総合体育館", "住所": "東京都品川区東五反田2-11-2", "緯度": 35.624549, "経度": 139.728257, "都度利用料金_一般": "各施設フリー利用: 200円 (プール除く); プール: 350円/2時間", "都度利用料金_区民_特定割引": "子供: 各施設100円 (プール除く); 中学生以下プール: 170円/2時間; 区内在住障害者・70歳以上: 各施設・プール無料", "月額料金_定期券_一般": "なし", "月額料金_定期券_区民_特定割引": "なし", "主な利用可能施設": "体育館; プール", "備考": "各施設フリー利用は事前登録が必要" },
+            { "No": 28, "ジム名": "目黒区民センター体育館", "住所": "東京都目黒区目黒2-4-36", "緯度": 35.635156, "経度": 139.708054, "都度利用料金_一般": "トレーニング室: 300円", "都度利用料金_区民_特定割引": "高齢者: 150円; 障害者: 150円; 中学生(スタジオプログラムのみ): 150円", "月額料金_定期券_一般": "なし", "月額料金_定期券_区民_特定割引": "なし", "主な利用可能施設": "トレーニング室; スタジオ", "備考": "区外の方も同一料金" },
+            { "No": 29, "ジム名": "目黒区立中央体育館", "住所": "東京都目黒区目黒本町5-22-8", "緯度": 35.618953, "経度": 139.699002, "都度利用料金_一般": "トレーニング室: 300円", "都度利用料金_区民_特定割引": "65歳以上・障害者: 150円", "月額料金_定期券_一般": "なし", "月額料金_定期券_区民_特定割引": "なし", "主な利用可能施設": "トレーニング室; スタジオ; プール; ストレッチエリア; スパ; お風呂; シャワー; サウナ; タンニング", "備考": "スパ・サウナなど付帯設備が充実" },
+            { "No": 30, "ジム名": "目黒区立八雲体育館", "住所": "東京都目黒区八雲1-1-1", "緯度": 35.621553, "経度": 139.67286, "都度利用料金_一般": "300円", "都度利用料金_区民_特定割引": "65歳以上・障害者・小人: 150円", "月額料金_定期券_一般": "なし", "月額料金_定期券_区民_特定割引": "なし", "主な利用可能施設": "体育館", "備考": "貸出器具あり (バドミントン; 卓球; 剣道防具)" },
+            { "No": 31, "ジム名": "目黒区立駒場体育館", "住所": "東京都目黒区駒場2-19-39", "緯度": 35.658611, "経度": 139.683056, "都度利用料金_一般": "なし", "都度利用料金_区民_特定割引": "障害者・高齢者は半額", "月額料金_定期券_一般": "トレーニング室: 3,600円/1ヶ月", "月額料金_定期券_区民_特定割引": "トレーニング室: 1,800円/1ヶ月", "主な利用可能施設": "体育館; プール; トレーニング室", "備考": "貸切利用は区外者倍額" },
+            { "No": 32, "ジム名": "大森スポーツセンター", "住所": "東京都大田区大森本町2-2-5", "緯度": 35.580916, "経度": 139.737364, "都度利用料金_一般": "ランニングステーション: 無料", "都度利用料金_区民_特定割引": "なし", "月額料金_定期券_一般": "なし", "月額料金_定期券_区民_特定割引": "なし", "主な利用可能施設": "ランニングステーション", "備考": "更衣室; コインロッカー; 温水シャワーあり" },
+            { "No": 33, "ジム名": "駒沢オリンピック公園総合運動場", "住所": "東京都世田谷区駒沢公園1-1", "緯度": 35.624839, "経度": 139.660785, "都度利用料金_一般": "500円/2時間", "都度利用料金_区民_特定割引": "中学生以下: 210円/2時間", "月額料金_定期券_一般": "なし", "月額料金_定期券_区民_特定割引": "ICプリペイドカードあり", "主な利用可能施設": "弓道場; トレーニングルームなど", "備考": "駐車場あり; アーチェリーは認定証または指導者引率必須" },
+            { "No": 34, "ジム名": "尾山台地域体育館", "住所": "東京都世田谷区尾山台3-19-3", "緯度": 35.604973, "経度": 139.654169, "都度利用料金_一般": "140円", "都度利用料金_区民_特定割引": "小中学生: 50円; 平日12:00～13:00は大人・小中学生ともに無料", "月額料金_定期券_一般": "なし", "月額料金_定期券_区民_特定割引": "なし", "主な利用可能施設": "体育館", "備考": "平日昼に無料利用時間帯あり" },
+            { "No": 35, "ジム名": "世田谷区総合運動場", "住所": "東京都世田谷区大蔵4-6-1", "緯度": 35.632222, "経度": 139.616111, "都度利用料金_一般": "トレーニングルーム: 80円～", "都度利用料金_区民_特定割引": "65歳以上・障害者: 250円/3時間", "月額料金_定期券_一般": "トレーニングルーム: 13,800円/1ヶ月", "月額料金_定期券_区民_特定割引": "なし", "主な利用可能施設": "トレーニングルーム; テニスコートなど", "備考": "駐車場あり; サウナ付きプランあり" },
+            { "No": 36, "ジム名": "大蔵第二運動場", "住所": "東京都世田谷区大蔵4-7-1", "緯度": 35.631088, "経度": 139.613343, "都度利用料金_一般": "テニスコート: 平日1,440円/1時間; 土日祝1,720円/1時間", "都度利用料金_区民_特定割引": "なし", "月額料金_定期券_一般": "なし", "月額料金_定期券_区民_特定割引": "なし", "主な利用可能施設": "テニスコート", "備考": "ゴルフ練習場利用者2時間無料; トレーニング室定期券利用者3時間無料の駐車場割引あり" },
+            { "No": 37, "ジム名": "弦巻中学校トレーニングルーム", "住所": "東京都世田谷区弦巻1-42-22", "緯度": 35.636944, "経度": 139.649444, "都度利用料金_一般": "無料", "都度利用料金_区民_特定割引": "無料", "月額料金_定期券_一般": "なし", "月額料金_定期券_区民_特定割引": "なし", "主な利用可能施設": "トレーニングルーム", "備考": "利用時間限定; 初回ガイダンス必須" },
+            { "No": 38, "ジム名": "猿楽トレーニングジム", "住所": "東京都渋谷区猿楽町12-35", "緯度": 35.6475, "経度": 139.7025, "都度利用料金_一般": "高校生以上: 300円/1回; プログラム参加費: 600円/1回", "都度利用料金_区民_特定割引": "中学生: 100円/1回; 60歳以上・障害者とその介助者1名: 無料 (区内在住・在勤・在学者)", "月額料金_定期券_一般": "なし", "月額料金_定期券_区民_特定割引": "なし", "主な利用可能施設": "トレーニングジム; スタジオ", "備考": "敬老の日・スポーツの日は区内在住者無料" },
+            { "No": 39, "ジム名": "ひがし健康プラザ", "住所": "東京都渋谷区東3-14-13", "緯度": 35.651389, "経度": 139.709444, "都度利用料金_一般": "温水プール: 400円/2時間", "都度利用料金_区民_特定割引": "小中学生: 100円/2時間; 高校生以上: 400円/2時間 (渋谷区在住・在勤・在学者)", "月額料金_定期券_一般": "なし", "月額料金_定期券_区民_特定割引": "なし", "主な利用可能施設": "温水プール", "備考": "渋谷区在住・在勤・在学者のみ利用可; 駐車場なし" },
+            { "No": 40, "ジム名": "代官山スポーツプラザ", "住所": "東京都渋谷区代官山町17-9", "緯度": 35.648611, "経度": 139.703889, "都度利用料金_一般": "プール: 高校生以上300円/1時間", "都度利用料金_区民_特定割引": "プール: 小中学生50円/1時間; 幼児(3歳以上): 無料 (付き添い必要)", "月額料金_定期券_一般": "なし", "月額料金_定期券_区民_特定割引": "なし", "主な利用可能施設": "プール", "備考": "子供料金が非常に安価" },
+            { "No": 41, "ジム名": "中野区立総合体育館", "住所": "東京都中野区新井3-37-78", "緯度": 35.715, "経度": 139.664444, "都度利用料金_一般": "メインアリーナ: 250円/2時間", "都度利用料金_区民_特定割引": "メインアリーナ中学生以下: 130円/2時間", "月額料金_定期券_一般": "なし", "月額料金_定期券_区民_特定割引": "なし", "主な利用可能施設": "メインアリーナ", "備考": "駐車場あり" },
+            { "No": 42, "ジム名": "中部スポーツ・コミュニティプラザ", "住所": "東京都中野区中央3-19-1", "緯度": 35.700556, "経度": 139.676667, "都度利用料金_一般": "トレーニングルーム: 400円/2時間; 体育館: 7,400円/2時間", "都度利用料金_区民_特定割引": "トレーニングルーム会員: 200円/2時間; 体育館会員: 3,700円/2時間", "月額料金_定期券_一般": "なし", "月額料金_定期券_区民_特定割引": "なし", "主な利用可能施設": "体育館; 屋外運動広場; 多目的ルーム; トレーニングルーム", "備考": "会員料金と非会員料金の差が大きい" },
+            { "No": 43, "ジム名": "南部スポーツ・コミュニティプラザ", "住所": "東京都中野区弥生町5-11-26", "緯度": 35.690833, "経度": 139.665278, "都度利用料金_一般": "温水プール: 200円/2時間", "都度利用料金_区民_特定割引": "温水プール会員: 100円/2時間; 就学前の幼児: 無料", "月額料金_定期券_一般": "なし", "月額料金_定期券_区民_特定割引": "なし", "主な利用可能施設": "温水プール", "備考": "会員料金と一般料金の差が大きい" },
+            { "No": 44, "ジム名": "鷺宮スポーツ・コミュニティプラザ", "住所": "東京都中野区白鷺3-1-13", "緯度": 35.7225, "経度": 139.638056, "都度利用料金_一般": "温水プール: 100円/1回 (一般); 体育館: 150円/1回 (一般)", "都度利用料金_区民_特定割引": "温水プール会員: 50円/1回; 就学前の幼児: 無料; 区民障害者: プール利用料金免除", "月額料金_定期券_一般": "なし", "月額料金_定期券_区民_特定割引": "なし", "主な利用可能施設": "温水プール; 体育館", "備考": "バリアフリー充実" },
+            { "No": 45, "ジム名": "TAC杉並区永福体育館", "住所": "東京都杉並区永福1-7-6", "緯度": 35.669748, "経度": 139.643293, "都度利用料金_一般": "体育館・小体育室・ビーチコート: 200円/2時間; トレーニングルーム: 500円/1回", "都度利用料金_区民_特定割引": "小人: 体育館・小体育室・ビーチコート100円/2時間; 未就学児: 無料; 身体障害者手帳等保持者(区内在住・在勤・在学): 各料金半額; 65歳以上(区民)平日正午まで: トレーニングルーム半額", "月額料金_定期券_一般": "なし", "月額料金_定期券_区民_特定割引": "なし", "主な利用可能施設": "体育館; 小体育室; ビーチコート; トレーニングルーム; 会議室", "備考": "ビーチコートという珍しい施設がある" },
+            { "No": 46, "ジム名": "TAC杉並区上井草スポーツセンター", "住所": "東京都杉並区上井草3-34-1", "緯度": 35.721111, "経度": 139.605, "都度利用料金_一般": "体育館・小体育室: 200円/2時間; トレーニングルーム: 500円/1回; 温水プール: 250円/1時間", "都度利用料金_区民_特定割引": "小中学生: 体育館・小体育室100円/2時間; 温水プール130円/1時間; 未就学児: 無料; 65歳以上(区民): トレーニングルーム半額; 温水プール130円/1時間; 障害者: トレーニングルーム半額; 温水プール半額", "月額料金_定期券_一般": "なし", "月額料金_定期券_区民_特定割引": "区立温水プール共通プリペイドカードあり", "主な利用可能施設": "体育館; 小体育室; トレーニングルーム; 温水プール", "備考": "プール利用には水泳帽必須; 化粧・貴金属類は外す" },
+            { "No": 47, "ジム名": "豊島区立 雑司が谷体育館", "住所": "東京都豊島区雑司が谷3-1-7", "緯度": 35.719444, "経度": 139.715556, "都度利用料金_一般": "競技場: 300円 (バドミントン・卓球); 体育室: 130円 (柔道); 温水プール: 400円/2時間", "都度利用料金_区民_特定割引": "小中学生: 競技場150円; 体育室60円; 温水プール200円/2時間; 料金減免制度あり", "月額料金_定期券_一般": "なし", "月額料金_定期券_区民_特定割引": "プリペイドカードあり", "主な利用可能施設": "競技場; 体育室; 温水プール", "備考": "なぎなた; 剣道も利用可" },
+            { "No": 48, "ジム名": "池袋スポーツセンター", "住所": "東京都豊島区上池袋2-5-1", "緯度": 35.736667, "経度": 139.717222, "都度利用料金_一般": "400円/2時間", "都度利用料金_区民_特定割引": "なし", "月額料金_定期券_一般": "なし", "月額料金_定期券_区民_特定割引": "なし", "主な利用可能施設": "トレーニングルーム; スタジオ; プール; 武道場", "備考": "区外在住・在学・在勤者も一般料金で利用可" },
+            { "No": 49, "ジム名": "滝野川体育館", "住所": "東京都北区西ケ原2-1-6", "緯度": 35.748056, "経度": 139.743889, "都度利用料金_一般": "400円", "都度利用料金_区民_特定割引": "なし", "月額料金_定期券_一般": "なし", "月額料金_定期券_区民_特定割引": "なし", "主な利用可能施設": "なし", "備考": "" },
+            { "No": 50, "ジム名": "桐ケ丘体育館", "住所": "東京都北区赤羽台3-17-57", "緯度": 35.783611, "経度": 139.713056, "都度利用料金_一般": "体育館: 300円; トレーニングルーム: 400円", "都度利用料金_区民_特定割引": "中学生以下: 体育館100円; 65歳以上: 体育館150円; 障害者: 体育館150円; 65歳以上・障害者: トレーニングルーム半額", "月額料金_定期券_一般": "トレーニングルーム: 3,200円/1ヶ月", "月額料金_定期券_区民_特定割引": "トレーニングルーム: 1,600円/1ヶ月", "主な利用可能施設": "体育館; トレーニングルーム; 柔・弓・剣道場", "備考": "駐車場あり; 定期券は区内在住・在学・在勤者のみ" },
+            { "No": 51, "ジム名": "赤羽体育館", "住所": "東京都北区志茂3-46-16", "緯度": 35.781682, "経度": 139.733075, "都度利用料金_一般": "メインアリーナ: 300円; 弓道場: 300円", "都度利用料金_区民_特定割引": "中学生以下: メインアリーナ100円; サブアリーナ100円; 65歳以上: メインアリーナ150円; 弓道場150円; 親子公開日(幼児体育室): 無料", "月額料金_定期券_一般": "なし", "月額料金_定期券_区民_特定割引": "なし", "主な利用可能施設": "メインアリーナ; 弓道場; サブアリーナ; トレーニングルーム; 幼児体育室", "備考": "介護予防マシンあり" },
+            { "No": 52, "ジム名": "荒川総合スポーツセンター", "住所": "東京都荒川区南千住6-45-5", "緯度": 35.741697, "経度": 139.799738, "都度利用料金_一般": "体育室: 600円/3時間; 武道場: 500円/3時間; トレーニングルーム: 500円/3時間; プール: 600円/2時間", "都度利用料金_区民_特定割引": "中学生以下は各施設で割引あり", "月額料金_定期券_一般": "なし", "月額料金_定期券_区民_特定割引": "なし", "主な利用可能施設": "体育室; 武道場; トレーニングルーム; 卓球場; 弓道場; スタジオ; 温水プール; エアライフル場など", "備考": "多様な施設; 駐車場あり" },
+            { "No": 53, "ジム名": "上板橋体育館", "住所": "東京都板橋区桜川1-3-1", "緯度": 35.760833, "経度": 139.674444, "都度利用料金_一般": "アリーナ: 330円; トレーニングルーム: 420円; プール: 420円/2時間", "都度利用料金_区民_特定割引": "小人: アリーナ110円; トレーニングルーム140円; プール150円/2時間", "月額料金_定期券_一般": "なし", "月額料金_定期券_区民_特定割引": "なし", "主な利用可能施設": "アリーナ; トレーニングルーム; プール", "備考": "オンライン予約可能" },
+            { "No": 54, "ジム名": "練馬区立勤労福祉会館", "住所": "東京都練馬区東大泉5-40-36", "緯度": 35.74817, "経度": 139.58766, "都度利用料金_一般": "トレーニング室: 100円/1時間", "都度利用料金_区民_特定割引": "なし", "月額料金_定期券_一般": "なし", "月額料金_定期券_区民_特定割引": "なし", "主な利用可能施設": "トレーニング室; 会議室など", "備考": "主に福利厚生施設" },
+            { "No": 55, "ジム名": "足立区総合スポーツセンター", "住所": "東京都足立区東保木間2-27-1", "緯度": 35.795556, "経度": 139.816944, "都度利用料金_一般": "大体育室: 300円; 弓道場: 300円; エアライフル場: 550円; アスレチックルーム: 300円", "都度利用料金_区民_特定割引": "子ども: 大体育室・小体育室・柔道場・剣道場100円", "月額料金_定期券_一般": "なし", "月額料金_定期券_区民_特定割引": "なし", "主な利用可能施設": "大体育室; 小体育室; 柔道場; 剣道場; 弓道場; エアライフル場; アスレチックルーム; 多目的グラウンド; テニスコート; 3on3コート; ウォーキング・ジョギングコース", "備考": "屋外施設は無料利用可能; 一部施設は利用制限あり" },
+            { "No": 56, "ジム名": "奥戸総合スポーツセンター体育館", "住所": "東京都葛飾区奥戸7-17-1", "緯度": 35.745, "経度": 139.865556, "都度利用料金_一般": "体育施設: 500円/2時間30分; アーチェリー場・エアライフル場: 400円/2時間30分", "都度利用料金_区民_特定割引": "小中学生: 100円", "月額料金_定期券_一般": "なし", "月額料金_定期券_区民_特定割引": "なし", "主な利用可能施設": "大体育室; 小体育室; 武道場; 弓道場; アーチェリー場; エアライフル場; トレーニングルームなど", "備考": "トレーニングルームは高校生以上のみ利用可" },
+            { "No": 57, "ジム名": "水元総合スポーツセンター体育館", "住所": "東京都葛飾区水元1-23-1", "緯度": 35.781845, "経度": 139.858735, "都度利用料金_一般": "トレーニングルーム: 300円/3時間", "都度利用料金_区民_特定割引": "なし", "月額料金_定期券_一般": "なし", "月額料金_定期券_区民_特定割引": "なし", "主な利用可能施設": "トレーニングルーム; ビームライフル場など", "備考": "ビームライフル利用可" },
+            { "No": 58, "ジム名": "江戸川区スポーツセンター", "住所": "東京都江戸川区西葛西4-2-20", "緯度": 35.668333, "経度": 139.857778, "都度利用料金_一般": "高校生以上: 210円; 小中学生: 50円", "都度利用料金_区民_特定割引": "幼児: 無料; 障害者: 介助者2名まで無料; 区民障害者: 駐車場料金免除", "月額料金_定期券_一般": "なし", "月額料金_定期券_区民_特定割引": "なし", "主な利用可能施設": "体育棟; プール", "備考": "非常に安価な利用料金" }
+        ].map(gym => ({
+            ...gym,
+            googleMapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(gym.ジム名 + ' ' + gym.住所)}`
+        }));
+
+        // --- グローバル変数 ---
+        let map, mobileMap;
+        let markers, mobileMarkers;
+        let userLocationMarker = null;
+        const initialFilters = {
+            searchTerm: '',
+            ward: 'all',
+            price: 'all'
+        };
+        let currentFilters = { ...initialFilters };
+        let selectedFacilityItem = null;
+        let isMobile = window.innerWidth <= 768;
+
+        // --- 初期化 ---
+        document.addEventListener('DOMContentLoaded', () => {
+            handleLayout(); // Initial setup based on width
+            window.addEventListener('resize', handleLayout);
+        });
+
+        function handleLayout() {
+            const newIsMobile = window.innerWidth <= 768;
+            if (newIsMobile !== isMobile || (!map && !mobileMap)) {
+                isMobile = newIsMobile;
+                if (isMobile) {
+                    if (!mobileMap) setupMobileView();
+                } else {
+                    if (!map) setupDesktopView();
+                }
+                updateMapAndList();
+                // Ensure map resizes correctly after layout switch
+                setTimeout(() => {
+                    if (isMobile && mobileMap) mobileMap.invalidateSize();
+                    if (!isMobile && map) map.invalidateSize();
+                }, 100);
+            }
+        }
+        
+        // --- ビューのセットアップ ---
+        function setupDesktopView() {
+            map = L.map('map').setView([35.6895, 139.7528], 11); // Centered on Tokyo
+            setupCommonMapFeatures(map);
+            markers = L.layerGroup().addTo(map);
+            generateWardFilters('desktop');
+            setupEventListeners('desktop');
+        }
+
+        function setupMobileView() {
+            mobileMap = L.map('mobile-map').setView([35.6895, 139.7528], 11); // Centered on Tokyo
+            setupCommonMapFeatures(mobileMap);
+            mobileMarkers = L.layerGroup().addTo(mobileMap);
+            
+            // Clone desktop filters for mobile view
+            const desktopFiltersHtml = document.getElementById('desktop-filters').innerHTML;
+            const mobileSearchPanel = document.getElementById('mobile-search-panel');
+            mobileSearchPanel.innerHTML = desktopFiltersHtml.replace(/-desktop/g, '-mobile');
+
+            generateWardFilters('mobile');
+            setupEventListeners('mobile');
+            
+            document.getElementById('search-toggle').addEventListener('click', () => {
+                const panel = document.getElementById('mobile-search-panel');
+                const isHidden = panel.style.display === 'none' || panel.style.display === '';
+                panel.style.display = isHidden ? 'block' : 'none';
+            });
+        }
+        
+        // --- 共通機能 ---
+        function setupCommonMapFeatures(targetMap) {
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(targetMap);
+
+            L.Control.Locate = L.Control.extend({
+                onAdd: function(map) {
+                    const btn = L.DomUtil.create('div', 'leaflet-bar leaflet-control leaflet-control-locate');
+                    btn.innerHTML = '<a href="#" title="現在地を表示"><i class="fas fa-crosshairs"></i></a>';
+                    L.DomEvent.on(btn, 'click', L.DomEvent.stop).on(btn, 'click', () => {
+                        map.locate({ setView: true, maxZoom: 14 });
+                    });
+                    return btn;
+                },
+            });
+            new L.Control.Locate({ position: 'topleft' }).addTo(targetMap);
+
+            targetMap.on('locationfound', (e) => {
+                if (userLocationMarker) {
+                    userLocationMarker.setLatLng(e.latlng);
+                } else {
+                    userLocationMarker = L.circleMarker(e.latlng, {
+                        radius: 8,
+                        color: '#fff',
+                        weight: 2,
+                        fillColor: '#2980b9',
+                        fillOpacity: 0.9
+                    }).bindPopup("あなたの現在地").addTo(targetMap);
+                }
+                userLocationMarker.openPopup();
+            });
+            targetMap.on('locationerror', () => showToast("現在地を取得できませんでした。ブラウザの位置情報サービスを許可してください。"));
+        }
+
+        function generateWardFilters(view) {
+            const wards = [...new Set(gymData.map(item => parseWard(item.住所)).filter(Boolean))].sort();
+            const container = document.getElementById(`ward-filters-${view}`);
+            if(container){
+                container.innerHTML = `<button data-value="all" class="active">すべて</button>` +
+                    wards.map(p => `<button data-value="${p}">${p}</button>`).join('');
+            }
+        }
+
+        function setupEventListeners(view) {
+            const containerId = view === 'desktop' ? 'desktop-filters' : 'mobile-search-panel';
+            const container = document.getElementById(containerId);
+            
+            container.querySelector('.search-input').addEventListener('input', (e) => {
+                currentFilters.searchTerm = e.target.value;
+                updateMapAndList();
+            });
+
+            ['ward', 'price'].forEach(type => {
+                const filterContainer = container.querySelector(`#${type}-filters-${view}`);
+                if (filterContainer) {
+                    filterContainer.addEventListener('click', (e) => {
+                        if (e.target.tagName === 'BUTTON') {
+                            currentFilters[type] = e.target.dataset.value;
+                            updateActiveButton(e.target.parentElement, e.target);
+                            updateMapAndList();
+                        }
+                    });
+                }
+            });
+            
+            const clearBtn = container.querySelector(`#clear-filters-${view}`);
+            if(clearBtn) {
+                clearBtn.addEventListener('click', () => {
+                    resetFilters(view);
+                });
+            }
+        }
+        
+        function resetFilters(view) {
+             currentFilters = { ...initialFilters };
+             const containerId = view === 'desktop' ? 'desktop-filters' : 'mobile-search-panel';
+             const container = document.getElementById(containerId);
+             container.querySelector('.search-input').value = '';
+             ['ward', 'price'].forEach(type => {
+                 const btnContainer = container.querySelector(`#${type}-filters-${view}`);
+                 if(btnContainer) {
+                     updateActiveButton(btnContainer, btnContainer.querySelector('button[data-value="all"]'));
+                 }
+             });
+             updateMapAndList();
+        }
+
+        // --- 地図とリストの更新 ---
+        function updateMapAndList() {
+            const currentMap = isMobile ? mobileMap : map;
+            const currentMarkerLayer = isMobile ? mobileMarkers : markers;
+            if (!currentMap) return;
+
+            currentMarkerLayer.clearLayers();
+            
+            const listContainerId = isMobile ? 'mobile-facility-list-container' : 'facility-list';
+            const listContainer = document.getElementById(listContainerId);
+            listContainer.innerHTML = '';
+            
+            const filteredData = gymData.filter(filterPredicate);
+
+            if (filteredData.length === 0) {
+                listContainer.innerHTML = `<p style="text-align:center; color: #777; padding: 20px;">条件に合う施設が見つかりませんでした。</p>`;
+            } else {
+                filteredData.forEach(gym => {
+                    addMarker(gym, currentMarkerLayer, currentMap);
+                    addToList(gym, currentMap, currentMarkerLayer, listContainer);
+                });
+            }
+            
+            updateStats(filteredData);
+        }
+
+        function filterPredicate(gym) {
+            if (gym.緯度 === null || gym.経度 === null) return false;
+
+            const searchTerm = currentFilters.searchTerm.toLowerCase();
+            const keywordMatch = searchTerm === '' ||
+                gym.ジム名.toLowerCase().includes(searchTerm) ||
+                gym.住所.toLowerCase().includes(searchTerm);
+
+            const wardMatch = currentFilters.ward === 'all' || parseWard(gym.住所) === currentFilters.ward;
+
+            const price = parsePrice(gym.都度利用料金_一般);
+            const priceMatch = currentFilters.price === 'all' || (price !== null && (
+                (currentFilters.price === '400' && price <= 400) ||
+                (currentFilters.price === '800' && price > 400 && price <= 800) ||
+                (currentFilters.price === '801' && price > 800)
+            ));
+            
+            return keywordMatch && wardMatch && priceMatch;
+        }
+
+        function addMarker(gym, markerLayer, targetMap) {
+            const customIcon = L.divIcon({
+                html: `<i class="fas fa-dumbbell" style="font-size: 24px; color: ${'#d35400'}; text-shadow: 1px 1px 3px rgba(0,0,0,0.5);"></i>`,
+                className: 'custom-div-icon',
+                iconSize: [24, 24],
+                iconAnchor: [12, 24],
+                popupAnchor: [0, -24]
+            });
+            const marker = L.marker([gym.緯度, gym.経度], { icon: customIcon });
+            
+            const popupContent = createPopupContent(gym);
+            marker.bindPopup(popupContent);
+            marker.on('click', () => {
+                const listContainer = document.getElementById(isMobile ? 'mobile-facility-list-container' : 'facility-list');
+                const listItem = listContainer.querySelector(`[data-id='${gym.No}']`);
+                if(listItem) {
+                     if(selectedFacilityItem) selectedFacilityItem.classList.remove('selected');
+                     listItem.classList.add('selected');
+                     selectedFacilityItem = listItem;
+                     listItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+            });
+            markerLayer.addLayer(marker);
+        }
+
+        function addToList(gym, targetMap, markerLayer, listContainer) {
+            const listItem = document.createElement('div');
+            listItem.className = 'facility-item';
+            listItem.dataset.id = gym.No;
+            
+            listItem.innerHTML = `
+                <h5><a href="${gym.googleMapsUrl}" target="_blank" title="Google Mapsで座標を見る">${gym.ジム名}</a></h5>
+                <p><i class="fas fa-yen-sign fa-fw"></i> 一般: ${gym.都度利用料金_一般 || '情報なし'}</p>
+                <p><i class="fas fa-map-marker-alt fa-fw"></i> ${gym.住所}</p>
+            `;
+            listItem.addEventListener('click', (e) => {
+                if (e.target.tagName !== 'A') {
+                    targetMap.setView([gym.緯度, gym.経度], 15);
+                    markerLayer.eachLayer(marker => {
+                        const markerLatLng = marker.getLatLng();
+                        if (markerLatLng.lat === gym.緯度 && markerLatLng.lng === gym.経度) {
+                            marker.openPopup();
+                        }
+                    });
+                    if(selectedFacilityItem) selectedFacilityItem.classList.remove('selected');
+                    listItem.classList.add('selected');
+                    selectedFacilityItem = listItem;
+                }
+            });
+            listContainer.appendChild(listItem);
+        }
+
+        function updateStats(data) {
+            const count = data.length;
+            const prices = data.map(d => parsePrice(d.都度利用料金_一般)).filter(p => p !== null);
+            const avgPrice = prices.length > 0 ? (prices.reduce((a, b) => a + b, 0) / prices.length).toFixed(0) : 0;
+            
+            const statsHtml = `<p><strong>${count}</strong>件の施設を表示中</p><p>平均価格 (目安): <strong>約${Number(avgPrice).toLocaleString()}円</strong></p>`;
+            
+            document.getElementById('stats-section-desktop').innerHTML = statsHtml;
+            document.getElementById('stats-section-mobile').innerHTML = statsHtml;
+        }
+
+        // --- ヘルパー関数 ---
+        function createPopupContent(gym) {
+            const formatText = (text) => (text && text.toLowerCase() !== 'なし') ? text.replace(/;/g, '<br>') : '情報なし';
+
+            return `
+                <div>
+                    <h3><a href="${gym.googleMapsUrl}" target="_blank" title="Google Mapsで座標を見る">${gym.ジム名}</a></h3>
+                    <p><i class="fas fa-map-marker-alt fa-fw" style="color:#666;"></i> ${gym.住所}</p>
+                    
+                    <div class="popup-section">
+                        <p><i class="fas fa-yen-sign fa-fw" style="color:#666;"></i> <b>都度利用 (一般):</b><br>${formatText(gym.都度利用料金_一般)}</p>
+                        <p><i class="fas fa-tags fa-fw" style="color:#666;"></i> <b>都度利用 (割引):</b><br>${formatText(gym.都度利用料金_区民_特定割引)}</p>
+                    </div>
+
+                    <div class="popup-section">
+                        <p><i class="fas fa-calendar-alt fa-fw" style="color:#666;"></i> <b>月額/定期 (一般):</b><br>${formatText(gym.月額料金_定期券_一般)}</p>
+                         <p><i class="fas fa-calendar-check fa-fw" style="color:#666;"></i> <b>月額/定期 (割引):</b><br>${formatText(gym.月額料金_定期券_区民_特定割引)}</p>
+                    </div>
+                    
+                    <div class="popup-section">
+                      <p><i class="fas fa-cogs fa-fw" style="color:#666;"></i> <b>主な施設:</b><br>${formatText(gym.主な利用可能施設)}</p>
+                    </div>
+
+                    ${(gym.備考 && gym.備考.toLowerCase() !== 'なし') ? `<div class="popup-section"><p style="font-size:11px; color:#d35400;"><i class="fas fa-info-circle fa-fw"></i> ${gym.備考}</p></div>` : ''}
+                </div>`;
+        }
+
+        function parsePrice(priceString) {
+            if (!priceString || typeof priceString !== 'string') return null;
+            // "トレーニング"を含む料金を優先的に検索
+            const trainingMatch = priceString.match(/トレーニング(?:ルーム|室)?:?\s*([\d,]+)円/);
+            if (trainingMatch && trainingMatch[1]) {
+                return parseInt(trainingMatch[1].replace(/,/g, ''), 10);
+            }
+            // "トレーニング"がない場合、最初に見つかった料金を検索
+            const match = priceString.match(/([\d,]+)円/);
+            if (match && match[1]) {
+                return parseInt(match[1].replace(/,/g, ''), 10);
+            }
+            return null;
+        }
+
+        function parseWard(address) {
+            if (!address || typeof address !== 'string') return null;
+            const match = address.match(/東京都(.*?区)/);
+            return match ? match[1] : null;
+        }
+
+        function updateActiveButton(container, activeButton) {
+            if(container && activeButton) {
+                container.querySelectorAll('button').forEach(btn => btn.classList.remove('active'));
+                activeButton.classList.add('active');
+            }
+        }
+
+        function showToast(message) {
+            const toast = document.createElement('div');
+            toast.className = 'toast-notification';
+            toast.textContent = message;
+            document.body.appendChild(toast);
+
+            // Trigger the animation
+            setTimeout(() => {
+                toast.classList.add('show');
+            }, 100);
+
+            // Hide and remove the toast after 3 seconds
+            setTimeout(() => {
+                toast.classList.remove('show');
+                toast.addEventListener('transitionend', () => {
+                    toast.remove();
+                });
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
+
