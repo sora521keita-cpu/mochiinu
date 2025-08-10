@@ -244,21 +244,24 @@
 
         #collapse-handle {
             width: 100%;
-            height: 20px;
+            height: 30px; /* Increased height for better tapping */
             background-color: var(--border-color);
             text-align: center;
             cursor: pointer;
             color: var(--text-light);
-            line-height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             flex-shrink: 0;
+            font-size: 16px;
         }
 
         #mobile-container.map-maximized #mobile-content-wrapper {
-            height: 20px; /* Only the handle is visible */
+            height: 30px; /* Only the handle is visible */
         }
 
         #mobile-container.map-maximized #mobile-map-wrapper {
-            height: calc(100vh - 20px);
+            height: calc(100vh - 30px);
         }
 
         .mobile-controls {
