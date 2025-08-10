@@ -587,11 +587,13 @@
 
             // Fullscreen functionality
             const fullscreenButton = document.getElementById('fullscreen-toggle');
-            const mobileContainer = document.getElementById('mobile-container');
+            const mapWrapper = document.getElementById('mobile-map-wrapper');
+            const contentWrapper = document.getElementById('mobile-content-wrapper');
+
             fullscreenButton.addEventListener('click', () => {
                 if (!document.fullscreenElement) {
-                    mobileContainer.requestFullscreen().catch(err => {
-                        alert(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+                    mapWrapper.requestFullscreen().catch(err => {
+                        showToast(`全画面表示にできませんでした: ${err.message}`);
                     });
                 } else {
                     document.exitFullscreen();
@@ -601,15 +603,26 @@
             document.addEventListener('fullscreenchange', () => {
                 const icon = fullscreenButton.querySelector('i');
                 if (document.fullscreenElement) {
+                    // Entering fullscreen
+                    contentWrapper.style.display = 'none';
+                    mapWrapper.style.height = '100vh';
                     icon.classList.remove('fa-expand');
                     icon.classList.add('fa-compress');
                     fullscreenButton.title = "通常表示に戻す";
                 } else {
+                    // Exiting fullscreen
+                    contentWrapper.style.display = 'flex';
+                    mapWrapper.style.height = '45vh';
                     icon.classList.remove('fa-compress');
                     icon.classList.add('fa-expand');
                     fullscreenButton.title = "全画面表示";
                 }
-                setTimeout(() => mobileMap.invalidateSize(), 200);
+                // Invalidate map size after a short delay to allow the DOM to update
+                setTimeout(() => {
+                    if (mobileMap) {
+                        mobileMap.invalidateSize();
+                    }
+                }, 100);
             });
         }
         
@@ -896,5 +909,4 @@
     </script>
 </body>
 </html>
-
 
