@@ -259,11 +259,19 @@
         }
 
         #mobile-search-panel {
-            display: none; /* Initially hidden */
-            padding: 12px;
+            max-height: 0;
+            overflow: hidden;
+            padding: 0 12px;
             background: #fff;
-            border: 1px solid var(--border-color);
             border-radius: 8px;
+            transition: max-height 0.3s ease-out, padding 0.3s ease-out, border 0.3s ease-out;
+            border: 0px solid var(--border-color);
+        }
+        #mobile-search-panel.open {
+            max-height: 50vh;
+            padding: 12px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
         }
         
         #mobile-facility-list-container {
@@ -545,10 +553,17 @@
             generateWardFilters('mobile');
             setupEventListeners('mobile');
             
-            document.getElementById('search-toggle').addEventListener('click', () => {
-                const panel = document.getElementById('mobile-search-panel');
-                const isHidden = panel.style.display === 'none' || panel.style.display === '';
-                panel.style.display = isHidden ? 'block' : 'none';
+            const searchToggleButton = document.getElementById('search-toggle');
+            const panel = document.getElementById('mobile-search-panel');
+
+            searchToggleButton.addEventListener('click', () => {
+                panel.classList.toggle('open');
+                const isOpen = panel.classList.contains('open');
+                if (isOpen) {
+                    searchToggleButton.innerHTML = '<i class="fas fa-times"></i> 閉じる';
+                } else {
+                    searchToggleButton.innerHTML = '<i class="fas fa-search"></i> 検索・絞り込み';
+                }
             });
         }
         
@@ -835,4 +850,5 @@
     </script>
 </body>
 </html>
+
 
